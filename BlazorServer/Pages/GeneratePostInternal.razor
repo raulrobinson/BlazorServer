@@ -1,0 +1,62 @@
+﻿@page "/generate-posts-internal"
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@inject IHttpClientFactory ClientFactory
+
+<h3>Generate Mocks Post desde Ingress Externo</h3>
+
+@if (getMocksError)
+{
+    <p>Unable to get Posts from Mocks. Please try again later.</p>
+}
+else
+{
+    <ul>
+        @foreach (var mock in mocks)
+        {
+            <li>@mock.Name</li>
+        }
+    </ul>
+}
+
+@code {
+    private IEnumerable<MockPost> mocks = Array.Empty<MockPost>();
+    private bool getMocksError;
+    private bool shouldRender;
+
+    protected override bool ShouldRender() => shouldRender;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get,
+            "http://api-rest-node-js-service:8080/api/v1/soluciones");
+        //request.Headers.Add("Accept", "application/vnd.github.v3+json");
+        //request.Headers.Add("User-Agent", "HttpClientFactory-Sample");
+        //request.Headers.Add("Access-Control-Allow-Credentials", "true");
+        //request.Headers.Add("Access-Control-Allow-Origin", "http://localhost:4200");
+
+        var client = ClientFactory.CreateClient();
+
+        var response = await client.SendAsync(request);
+
+        if (response.IsSuccessStatusCode)
+        {
+            using var responseStream = await response.Content.ReadAsStreamAsync();
+            mocks = await JsonSerializer.DeserializeAsync
+                <IEnumerable<MockPost>>(responseStream);
+        }
+        else
+        {
+            getMocksError = true;
+        }
+
+        shouldRender = true;
+    }
+
+    public class MockPost
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+    }
+
+}
